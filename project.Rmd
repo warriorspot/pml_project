@@ -4,13 +4,15 @@
 
 ### Overview
 
-The goal of this exercise is to predict the class of unlablled exercise participants using labelled 
+The goal of this exercise is to predict the class of unlabeled exercise participants using labelled 
 data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. 
 Participants were asked to perform barbell lifts correctly and incorrectly in 5 different ways.  
 
 I leveraged the caret package to build and compare two different models as follows:<br>
 
 ```{r fetch files, echo=FALSE}
+
+options(warn=-1)
 
 if(file.exists("pml-training.csv") == FALSE) {
     download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
@@ -24,6 +26,7 @@ if(file.exists("pml-testing.csv") == FALSE) {
 }
 
 ```
+1. Create training and testing data partitions from the testing data set:
 
 ```{r create data partitions, echo=TRUE}
 
@@ -35,7 +38,8 @@ data <- read.csv("./pml-training.csv", stringsAsFactors=FALSE)
 inTrain <- createDataPartition(y=data$classe, p=0.7, list=FALSE)
 training <- data[inTrain,]
 testing <- data[-inTrain,]
-
+```
+```{r echo=FALSE}
 # Out of sample error rate
 outOfSampleError <- function(m) {
     pTesting <- predict(m, newdata=testing[,-160])
@@ -45,7 +49,12 @@ outOfSampleError <- function(m) {
 
 ```
 
-Clean the data.  
+2. I visually inspected the features in the training data by opening the file in a spreadsheet.
+3. I noticed many features with largely missing or NA data. I decided to remove these.
+4. I removed any non-numeric features.
+5. There are a few 'book keeping' features (timestamp, etc) that I felt would not be needed.  I removed these.
+
+I chose to pre-process the data by centering and scaling the remaning predictors, and performing Principle Component Analysis to attempt some data compression.  I used 3-fold cross validation to generate an in-sample error rate.
 
 ```{r clean data, echo=TRUE}
 #Get rid of the first four columns, which dont contain measurement data
@@ -55,10 +64,15 @@ tclean <- subset(training, select=seq(5, ncol(training)))
 classe <- tclean$classe
 tclean <- tclean[, sapply(tclean, is.numeric)]
 tclean <- tclean[, colSums(is.na(tclean)) == 0]
+
+preMethod <- c("center", "scale", "pca")
+preObj <- preProcess(tclean, method=preMethod)
+print(preObj)
+
 tclean$classe <- as.factor(classe)
 ```
 
-Build the model
+6. For model selection, I chose Linear Disciminant Analysis due to it's affinity for non-binary classification, and Random Forest, for it's accuracy.
 
 ```{r build the model, cache=TRUE, echo=TRUE}
 
@@ -77,9 +91,12 @@ errorRate <- outOfSampleError(mRf)
 print(errorRate)
 ```
 
+The error rate for LDA is much too high.  The Random Forest model took much longer to generate, but has a much higher accuracy.  I used the Random Forest model for my final predictions.
+
 ```{r do final predictions, echo=TRUE}
 #Try predictions on testing data
 testData <- read.csv("./pml-testing.csv", stringsAsFactors=FALSE)
-pFinal <- predict(m, newdata=testData)
+pFinal <- predict(mRf, newdata=testData)
 print(data.frame(pFinal))
 ```
+Using this model 19 of 20 predictions were correct.
