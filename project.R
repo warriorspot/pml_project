@@ -37,7 +37,7 @@ tclean$classe <- as.factor(classe)
 tControl <- trainControl(method="cv", number=3)
 
 #Train a naive Bayes model, preprocessing with PCA, using K-Fold cross validation
-m <- train(classe ~ ., method="rf", preProcess=c("center", "scale", "pca"),
+m <- train(classe ~ ., method="lda", preProcess=c("center", "scale", "pca"),
            trainControl=tControl, data=tclean)
 
 #Verify error rate on test set
