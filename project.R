@@ -24,25 +24,27 @@ testing <- data[-inTrain,]
 # Prepare the data for prediction
 
 #Get rid of the first four columns, which dont contain measurement data
-tclean <- subset(training, select=seq(5, ncol(data)))
-
+tclean <- subset(training, select=seq(5, ncol(training)))
 
 # Consider only numeric predictors with no NA values
-classe <- data$classe
-tclean <- data[, sapply(training, is.numeric)] 
-tclean <- tclean[, colSums(is.na(tclean)) == 0] 
-tclean$classe <- classe
+classe <- tclean$classe
+tclean <- tclean[, sapply(tclean, is.numeric)]
+tclean <- tclean[, colSums(is.na(tclean)) == 0]
+tclean$classe <- as.factor(classe)
+
 
 #Set up k-fold cross validation
 tControl <- trainControl(method="cv", number=3)
 
 #Train a naive Bayes model, preprocessing with PCA, using K-Fold cross validation
-m <- train(classe ~ ., method="lda", preProcess=c("pca"), trainControl=tControl, data=tclean)
+m <- train(classe ~ ., method="rf", preProcess=c("center", "scale", "pca"),
+           trainControl=tControl, data=tclean)
 
+#Verify error rate on test set
 pTesting <- predict(m, newdata=testing[,-160])
-
-c <- data.frame(actual=testing$classe, predicted=p)
+c <- data.frame(actual=testing$classe, predicted=pTesting)
 errorRate <- nrow(c[c$actual != c$predicted,])/nrow(c)
 
+#Try predictions on testing data
 testData <- read.csv("./pml-testing.csv", stringsAsFactors=FALSE)
 pFinal <- predict(m, newdata=testData)
