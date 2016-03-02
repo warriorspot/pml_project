@@ -8,6 +8,9 @@ The goal of this exercise is to predict the class of unlabeled exercise particip
 data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. 
 Participants were asked to perform barbell lifts correctly and incorrectly in 5 different ways.  
 
+
+### Implementation
+
 I leveraged the caret package to build and compare two different models as follows:<br>
 
 ```{r fetch files, echo=FALSE}
@@ -26,6 +29,7 @@ if(file.exists("pml-testing.csv") == FALSE) {
 }
 
 ```
+
 1. Create training and testing data partitions from the testing data set:
 
 ```{r create data partitions, echo=TRUE}
@@ -67,36 +71,50 @@ tclean <- tclean[, colSums(is.na(tclean)) == 0]
 
 preMethod <- c("center", "scale", "pca")
 preObj <- preProcess(tclean, method=preMethod)
-print(preObj)
-
 tclean$classe <- as.factor(classe)
+
+print(preObj)
 ```
 
-6. For model selection, I chose Linear Disciminant Analysis due to it's affinity for non-binary classification, and Random Forest, for it's accuracy.
+6. For model selection, I chose Linear Disciminant Analysis due to it's affinity for non-binary classification, and Random Forest, for it's accuracy.  I used 3-fold Cross Validation in both cases.
+
 
 ```{r build the model, cache=TRUE, echo=TRUE}
 
 tControl <- trainControl(method="cv", number=3)
 
-mLda <- train(classe ~ ., method="lda", preProcess=c("center", "scale", "pca"),
+mLda <- train(classe ~ ., method="lda", preProcess=preMethod,
            trainControl=tControl, data=tclean)
 print(mLda)
 errorRate <- outOfSampleError(mLda)
 print(errorRate)
 
-mRf <- train(classe ~ ., method="rf", preProcess=c("center", "scale", "pca"),
+```
+The accuracy isnt very good, but it runs fast.  Lets use this see whats going on in our cleaned data:
+
+```{r plots, echo=FALSE}
+
+print(varImp(mLda))
+qplot(x=seq(1:nrow(tclean)), y=tclean$pitch_forearm, colour=tclean$classe, 
+      xlab="Observations", ylab="Forearm Pitch")
+```
+
+This plot shows a clear difference in range-of-motion as we proceed from classe A to E.  Now  
+to try for a more accurate model:
+
+```{r final model, cache=TRUE, echo=TRUE}
+mRf <- train(classe ~ ., method="rf", preProcess=preMethod,
            trainControl=tControl, data=tclean)
 print(mRf)
 errorRate <- outOfSampleError(mRf)
 print(errorRate)
 ```
 
-The error rate for LDA is much too high.  The Random Forest model took much longer to generate, but has a much higher accuracy.  I used the Random Forest model for my final predictions.
+### Conclusion
 
-```{r do final predictions, echo=TRUE}
-#Try predictions on testing data
-testData <- read.csv("./pml-testing.csv", stringsAsFactors=FALSE)
-pFinal <- predict(mRf, newdata=testData)
-print(data.frame(pFinal))
-```
+The Random Forest model took much longer to generate, but has a much higher accuracy.  
+
+I used the Random Forest model for my final predictions.
+
 Using this model 19 of 20 predictions were correct.
+
